@@ -1,52 +1,41 @@
 (ns teletext-history-api.image-downloader
-  (:require [clj-http.client :as http]))
+  (:require [teletext-history-api.storage :refer [store]]
+            [teletext-history-api.api-client :refer [get-page-json get-image-png]]
+            [clojure.string :as str]))
 
-(defn- image-url [page subpage]
-  (str "https://external.api.yle.fi/v1/teletext/images/" page "/" subpage ".png"))
+(defprotocol DownloadScheduler
+  (schedule-page-download [this page])
+  (schedule-image-download [this page subpage time]))
 
-(defn- page-url [page]
-  (str "https://external.api.yle.fi/v1/teletext/pages/" page ".json"))
 
-(defn- get-image [{:keys [page subpage app_id app_key]}]
-  {:pre [(string? page)
-         (string? subpage)
-         (string? app_id)
-         (string? app_key)]}
-  (let [url (image-url page subpage)
-        opts {:query-params {:app_id  app_id
-                             :app_key app_key}
-              :as           :byte-array}
-        response (http/get url opts)]
-    (case (:status response)
-      200 (:body response)
-      nil)))
+; The API docs state that the rate of requests may not exceed 10/s.
+; Thus, wait for 100ms between requests.
+(def ^:private interval-ms 100)
 
-(defn- get-page [{:keys [page app_id app_key]}]
-  {:pre [(string? page)
-         (string? app_id)
-         (string? app_key)]}
-  (let [url (page-url page)
-        opts {:query-params {:app_id  app_id
-                             :app_key app_key}}
-        response (http/get url opts)]
-    (case (:status response)
-      200 (:body response)
-      nil)))
+; The teletext pages start at index 100.
+(def ^:private start-page "100")
 
-(defprotocol APIClient
-  (get-image-png [this page subpage])
-  (get-page-json [this page]))
+(defrecord DownloadSchedulerImpl
+  [cache api-client page->latest-fetched]
+  DownloadScheduler
+  (schedule-page-download [this page]
+    (Thread/sleep interval-ms)
+    (let [page-data (-> (get-page-json api-client page)
+                        (get-in ["teletext" "page"]))
+          page-time (get page-data "time")
+          next-page (get page-data "nextpg")
+          subpage-count (Integer/parseInt (get page-data "subpagecount"))]
+      (when-not (= page-time (get @page->latest-fetched page))
+        (swap! page->latest-fetched assoc page page-time)
+        (doseq [subpage (map str (range 1 (inc subpage-count)))]
+          (schedule-image-download this page subpage page-time)))
+      (if next-page
+        (schedule-page-download this next-page)
+        (schedule-page-download this start-page))))
+  (schedule-image-download [_ page subpage time]
+    (Thread/sleep interval-ms)
+    (let [blob (get-image-png api-client page subpage)]
+      (store cache page subpage time blob))))
 
-(defrecord APIClientImpl
-  [app_key app_id]
-  APIClient
-  (get-image-png [_ page subpage]
-    (get-image {:app_key app_key
-                :app_id  app_id
-                :page    page
-                :subpage subpage}))
-  (get-page-json [_ page]
-    (get-page {:app_key app_key
-               :app_id  app_id
-               :page    page})))
-
+(defn start-download-schedule! [scheduler]
+  (schedule-page-download scheduler start-page))
