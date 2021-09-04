@@ -1,7 +1,7 @@
 (ns teletext-history-api.image-downloader
   (:require [teletext-history-api.storage :refer [store]]
-            [teletext-history-api.api-client :refer [get-page-json get-image-png]]
-            [clojure.string :as str]))
+            [teletext-history-api.api-client :refer [get-page-json get-image-png]])
+  (:import [java.time LocalDateTime ZoneOffset]))
 
 (defprotocol DownloadScheduler
   (schedule-page-download [this page])
@@ -15,6 +15,12 @@
 ; The teletext pages start at index 100.
 (def ^:private start-page "100")
 
+(defn- date-time->epoch-millis [^String date-time]
+  (-> date-time
+      (LocalDateTime/parse)
+      (.toInstant ZoneOffset/UTC)
+      (.toEpochMilli)))
+
 (defrecord DownloadSchedulerImpl
   [cache api-client page->latest-fetched]
   DownloadScheduler
@@ -22,7 +28,9 @@
     (Thread/sleep interval-ms)
     (let [page-data (-> (get-page-json api-client page)
                         (get-in ["teletext" "page"]))
-          page-time (get page-data "time")
+          page-time (-> (get page-data "time")
+                        (date-time->epoch-millis)
+                        (str))
           next-page (get page-data "nextpg")
           subpage-count (Integer/parseInt (get page-data "subpagecount"))]
       (when-not (= page-time (get @page->latest-fetched page))

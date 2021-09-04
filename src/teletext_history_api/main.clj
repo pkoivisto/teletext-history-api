@@ -9,8 +9,7 @@
             [clojure.walk :refer [keywordize-keys]]
             [clj-http.client :as http]
             [clojure.java.io :as io]
-            [clojure.edn :as edn])
-  (:import (java.util.concurrent Executors ExecutorService)))
+            [clojure.edn :as edn]))
 
 (defonce secrets (-> (io/resource "secret.edn")
                      (slurp)
@@ -122,5 +121,6 @@
     #_(store cache page subpage "now" (.getBytes (:body (get-image opts))))
     (store cache page subpage "now" (:body (get-image opts))))
 
-  (store nil nil nil nil nil)
+
+  (.toEpochMilli (.toInstant (LocalDateTime/parse "2021-09-04T21:26:12") ZoneOffset/UTC))
   )
