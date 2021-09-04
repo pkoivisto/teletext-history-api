@@ -1,14 +1,20 @@
 (ns teletext-history-api.main
-  (:require [ring.adapter.jetty :refer [run-jetty]]
+  (:require [teletext-history-api.api-client :refer [->APIClientImpl get-image-png get-page-json]]
+            [teletext-history-api.storage :refer [store fetch PageImageCache ->FilesystemImageCache]]
+            [teletext-history-api.image-downloader :refer [->DownloadSchedulerImpl start-download-schedule!]]
+            [ring.adapter.jetty :refer [run-jetty]]
             [reitit.ring :as ring]
             [reitit.core :as r]
-            [teletext-history-api.image-downloader :refer [->APIClientImpl get-image-png get-page-json]]
             [clojure.string :as s]
             [clojure.walk :refer [keywordize-keys]]
             [clj-http.client :as http]
             [clojure.java.io :as io]
-            [clojure.edn :as edn]
-            [teletext-history-api.storage :refer [store fetch PageImageCache ->FilesystemImageCache]]))
+            [clojure.edn :as edn])
+  (:import (java.util.concurrent Executors ExecutorService)))
+
+(defonce secrets (-> (io/resource "secret.edn")
+                     (slurp)
+                     (edn/read-string)))
 
 (defn- image-response [handler]
   (fn [request]
@@ -53,10 +59,19 @@
   (ring/ring-handler (routes cache) (ring/create-default-handler)))
 
 (defn- main []
-  (let [cache (->FilesystemImageCache "/tmp/teletext-history-api")]
-    (run-jetty (handler cache)
-               {:port  8080
-                :join? false})))
+  (let [cache (->FilesystemImageCache "/tmp/teletext-history-api")
+        api-client (->APIClientImpl (:app_key secrets) (:app_id secrets))
+        download-scheduler (->DownloadSchedulerImpl cache api-client (atom {}))
+        downloader-thread (Thread. (reify Runnable
+                                     (run [_]
+                                       (start-download-schedule! download-scheduler))))]
+    (try
+      (.start downloader-thread)
+      (run-jetty (handler cache)
+                 {:port  8080
+                  :join? true})
+      (finally
+        (.interrupt downloader-thread)))))
 
 (comment
   (def server (main))
@@ -89,9 +104,14 @@
 
 
   (let [page "100"
-        subpage "1"
         client (->APIClientImpl (:app_key secrets) (:app_id secrets))]
-    (get-image-png client page subpage))
+    (let [res (get-page-json client page)
+          page (get-in res ["teletext" "page"])]
+      (Integer/parseInt (get page "subpagecount"))))
+
+  (let [page "100"
+        client (->APIClientImpl (:app_key secrets) (:app_id secrets))]
+    (keys (get-page-json client page)))
 
   (let [cache (->FilesystemImageCache "/tmp")
         page "100"
