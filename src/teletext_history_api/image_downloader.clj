@@ -9,8 +9,8 @@
 
 
 ; The API docs state that the rate of requests may not exceed 10/s.
-; Thus, wait for 100ms between requests.
-(def ^:private interval-ms 100)
+; Wait for 150ms between requests to be on the safe side.
+(def ^:private interval-ms 150)
 
 ; The teletext pages start at index 100.
 (def ^:private start-page "100")
