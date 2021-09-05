@@ -37,13 +37,3 @@
     (let [file (io/file root-dir page subpage (str time ".png"))
           _ (io/make-parents file)]
       (io/copy blob file))))
-
-(comment
-  (let [cache (->FilesystemImageCache "/tmp/yle")])
-
-
-  (sort-by #(.getName ^File %) (filter #(.isFile ^File %) (file-seq (io/file "/tmp" "100" "1"))))
-  (io/make-parents (io/file "/tmp/yle/dev" "teletext-history-api" "moiccu"))
-
-  (->FilesystemImageCache "/tmp")
-  (compare "2021-03-15" "2021-03-16"))
