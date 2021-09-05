@@ -57,7 +57,7 @@
 (defn- handler [cache]
   (ring/ring-handler (routes cache) (ring/create-default-handler)))
 
-(defn- main []
+(defn -main []
   (let [cache (->FilesystemImageCache "/tmp/teletext-history-api")
         api-client (->APIClientImpl (:app_key secrets) (:app_id secrets))
         download-scheduler (->DownloadSchedulerImpl cache api-client (atom {}))
