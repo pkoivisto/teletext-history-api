@@ -1,5 +1,6 @@
 (ns teletext-history-api.storage
-  (:require [clojure.java.io :as io])
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str])
   (:import (java.io File ByteArrayOutputStream)))
 
 (defprotocol PageImageCache
@@ -16,11 +17,15 @@
 (defrecord FilesystemImageCache [root-dir]
   PageImageCache
   (fetch [_ page subpage time]
-    (let [file->name #(.getName ^File %)
+    (let [match->time (fn [^File match]
+                        (let [[name _] (-> (.getName match)
+                                             (str/split #"\."))]
+                          (Long/parseLong name)))
           stored-images (filter #(.isFile ^File %) (file-seq (io/file root-dir page subpage)))
-          match (->> (sort-by file->name stored-images)
-                     (drop-while #(<= 0 (compare time (file->name %))))
-                     (first))
+          time-as-long (Long/parseLong time)
+          match (->> (sort-by match->time stored-images)
+                     (take-while #(<= (match->time %) time-as-long))
+                     (last))
           file->bytes (fn [^File file]
                         (with-open [in (io/input-stream file)
                                     out (ByteArrayOutputStream.)]
