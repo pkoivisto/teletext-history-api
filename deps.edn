@@ -1,10 +1,13 @@
 {:paths   ["src" "resources"]
- :deps    {org.clojure/clojure       {:mvn/version "1.10.3"}
-           ring/ring-core            {:mvn/version "1.9.4"}
-           ring/ring-jetty-adapter   {:mvn/version "1.9.4"}
-           metosin/reitit-ring       {:mvn/version "0.5.15"}
-           metosin/reitit-middleware {:mvn/version "0.5.15"}
-           clj-http/clj-http         {:mvn/version "3.12.3"}
-           org.clojure/data.json     {:mvn/version "2.4.0"}}
- :aliases {:run  {:ns-default teletext-history-api.main
-                  :exec-fn    -main}}}
+ :deps    {org.clojure/clojure                {:mvn/version "1.10.3"}
+           org.clojure/data.json              {:mvn/version "2.4.0"}
+           org.clojure/tools.logging          {:mvn/version "1.1.0"}
+           org.apache.logging.log4j/log4j-api {:mvn/version "2.14.1"}
+           ring/ring-core                     {:mvn/version "1.9.4"}
+           ring/ring-jetty-adapter            {:mvn/version "1.9.4"}
+           metosin/reitit-ring                {:mvn/version "0.5.15"}
+           metosin/reitit-middleware          {:mvn/version "0.5.15"}
+           clj-http/clj-http                  {:mvn/version "3.12.3"}}
+ :aliases {:run {:ns-default teletext-history-api.main
+                 :exec-fn    -main}}
+ :jvm-opts ["-Dclojure.tools.logging.factory=clojure.tools.logging.impl/log4j2-factory"]}

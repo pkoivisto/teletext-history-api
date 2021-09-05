@@ -16,10 +16,10 @@
 (def ^:private start-page "100")
 
 (defn- date-time->epoch-millis [^String date-time]
-  (-> date-time
-      (LocalDateTime/parse)
-      (.toInstant ZoneOffset/UTC)
-      (.toEpochMilli)))
+  (some-> date-time
+          (LocalDateTime/parse)
+          (.toInstant ZoneOffset/UTC)
+          (.toEpochMilli)))
 
 (defrecord DownloadSchedulerImpl
   [cache api-client page->latest-fetched]
@@ -32,7 +32,8 @@
                         (date-time->epoch-millis)
                         (str))
           next-page (get page-data "nextpg")
-          subpage-count (Integer/parseInt (get page-data "subpagecount"))]
+          subpage-count (some-> (get page-data "subpagecount")
+                                (Integer/parseInt))]
       (when-not (= page-time (get @page->latest-fetched page))
         (swap! page->latest-fetched assoc page page-time)
         (doseq [subpage (map str (range 1 (inc subpage-count)))]
