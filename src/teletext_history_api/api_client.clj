@@ -17,6 +17,7 @@
         opts {:query-params {:app_id  app_id
                              :app_key app_key}
               :as           :byte-array}
+        ; TODO Catch and log errors
         response (http/get url opts)]
     (case (:status response)
       200 (:body response)
@@ -29,6 +30,7 @@
   (let [url (page-url page)
         opts {:query-params {:app_id  app_id
                              :app_key app_key}}
+        ; TODO Catch and log errors
         response (http/get url opts)]
     (case (:status response)
       200 (some-> (:body response)
