@@ -57,6 +57,10 @@
 (defn- handler [cache]
   (ring/ring-handler (routes cache) (ring/create-default-handler)))
 
+(defn start-jetty!
+  ([cache] (start-jetty! cache {:port 8080, :join? true}))
+  ([cache opts] (run-jetty (handler cache) opts)))
+
 (defn -main []
   (let [cache (->FilesystemImageCache "/tmp/teletext-history-api")
         api-client (->APIClientImpl (:app_key secrets) (:app_id secrets))
@@ -66,9 +70,7 @@
                                        (start-download-schedule! download-scheduler))))]
     (try
       (.start downloader-thread)
-      (run-jetty (handler cache)
-                 {:port  8080
-                  :join? true})
+      (start-jetty! cache)
       (finally
         (.interrupt downloader-thread)))))
 
