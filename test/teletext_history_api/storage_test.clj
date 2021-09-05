@@ -1,7 +1,9 @@
-(ns teletext-history-api.storage
-  (:require [clojure.test :refer :all])
+(ns teletext-history-api.storage-test
+    (:require [clojure.test :refer :all]
+              [teletext-history-api.storage :refer [fetch store ->FilesystemImageCache]])
   (:import (java.time Instant)
-           (java.time.temporal ChronoUnit)))
+           (java.time.temporal ChronoUnit)
+           (java.io File)))
 
 (defn- instant+offset->epoch-milli [^Instant inst offset unit]
   (-> inst
@@ -55,5 +57,3 @@
         (doseq [f (->> (file-seq cache-dir)
                        (reverse))]
           (.delete f))))))
-
-
