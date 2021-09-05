@@ -27,23 +27,26 @@
   (schedule-page-download [this page]
     (Thread/sleep interval-ms)
     (let [page-data (-> (get-page-json api-client page)
-                        (get-in ["teletext" "page"]))
-          page-time (-> (get page-data "time")
-                        (date-time->epoch-millis)
-                        (str))
-          next-page (get page-data "nextpg")
-          subpage-count (some-> (get page-data "subpagecount")
-                                (Integer/parseInt))]
-      (when-not (= page-time (get @page->latest-fetched page))
-        (swap! page->latest-fetched assoc page page-time)
-        (doseq [subpage (map str (range 1 (inc subpage-count)))]
-          (schedule-image-download this page subpage page-time)))
-      (if next-page
-        (schedule-page-download this next-page)
+                        (get-in ["teletext" "page"]))]
+      (if page-data
+        (let [page-time (-> (get page-data "time")
+                            (date-time->epoch-millis)
+                            (str))
+              next-page (get page-data "nextpg")
+              subpage-count (some-> (get page-data "subpagecount")
+                                    (Integer/parseInt))]
+          (when-not (= page-time (get @page->latest-fetched page))
+            (swap! page->latest-fetched assoc page page-time)
+            (doseq [subpage (map str (range 1 (inc subpage-count)))]
+              (schedule-image-download this page subpage page-time)))
+          (if next-page
+            (schedule-page-download this next-page)
+            (schedule-page-download this start-page)))
+        ; If an error occurred fetching data from page, restart from start page.
         (schedule-page-download this start-page))))
   (schedule-image-download [_ page subpage time]
     (Thread/sleep interval-ms)
-    (let [blob (get-image-png api-client page subpage)]
+    (when-let [blob (get-image-png api-client page subpage)]
       (store cache page subpage time blob))))
 
 (defn start-download-schedule! [scheduler]
